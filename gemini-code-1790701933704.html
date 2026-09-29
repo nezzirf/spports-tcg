@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sports TCG Elite - Jeu de Booster</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        tcg: { dark: '#03050a', card: '#0d1322', border: '#1e293b' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+    </style>
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Rajdhani:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #03050a;
+            color: #f8fafc;
+            overflow: hidden;
+        }
+        .bg-pattern {
+            position: absolute; inset: 0; z-index: 0; pointer-events: none;
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(14, 165, 233, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(245, 158, 11, 0.08) 0%, transparent 40%),
+                radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0);
+            background-size: 100% 100%, 100% 100%, 24px 24px;
+        }
+        .font-sport { font-family: 'Rajdhani', sans-serif; }
+        .tab-content { display: none; opacity: 0; transition: opacity 0.25s ease-in-out; }
+        .tab-content.active { display: block; opacity: 1; }
+        
+        .pokemon-card {
+            aspect-ratio: 4 / 6;
+            border-radius: 16px;
+            position: relative;
+            box-shadow: 0 16px 35px rgba(0, 0, 0, 0.9), inset 0 0 6px rgba(255, 255, 255, 0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-sizing: border-box;
+            border: 6px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .card-image-container {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            border-radius: 10px;
+            background-color: #0b0f19;
+        }
+
+        .card-image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center 25%;
+        }
+
+        .card-inner-border {
+            position: absolute;
+            inset: 4px;
+            border: 2px solid #000000;
+            border-radius: 10px;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        .pokemon-card:hover {
+            transform: translateY(-6px) scale(1.03);
+            box-shadow: 0 24px 45px rgba(0, 0, 0, 0.98);
+        }
+
+        .rarity-0 { --border-color: #94a3b8; --rarity-color: #94a3b8; }
+        .rarity-1 { --border-color: #4ade80; --rarity-color: #4ade80; }
+        .rarity-2 { --border-color: #38bdf8; --rarity-color: #38bdf8; }
+        .rarity-3 { --border-color: #fb923c; --rarity-color: #fb923c; }
+        .rarity-4 { --border-color: #facc15; --rarity-color: #facc15; }
+        .rarity-5 { --border-color: #f472b6; --rarity-color: #f472b6; }
+
+        .themed-text { color: var(--rarity-color); }
+        .themed-border { border-color: var(--rarity-color); }
+        
+        .name-banner { 
+            position: absolute;
+            bottom: -6px;
+            left: -6px;
+            right: 18px;
+            width: auto;
+            background-color: #0b0f19; 
+            box-sizing: border-box;
+            border-top-right-radius: 8px;
+            border-bottom-right-radius: 0px;
+            border-bottom-left-radius: 12px;
+            border-top-left-radius: 0px;
+            z-index: 20;
+        }
+
+        .holo-sheen {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                120deg,
+                transparent 30%,
+                rgba(255, 255, 255, 0.35) 45%,
+                rgba(255, 255, 255, 0.75) 50%,
+                rgba(255, 255, 255, 0.35) 55%,
+                transparent 70%
+            );
+            pointer-events: none;
+            mix-blend-mode: overlay;
+            animation: holoMove 4s ease-in-out infinite;
+            z-index: 10;
+        }
+
+        @keyframes holoMove {
+            0% { transform: translateY(-120%) translateX(-120%) rotate(25deg); }
+            20% { transform: translateY(120%) translateX(120%) rotate(25deg); }
+            100% { transform: translateY(120%) translateX(120%) rotate(25deg); }
+        }
+
+        /* --- STYLES ET ANIMATIONS POUR LE NOUVEAU BOOSTER --- */
+        .booster-3d-wrapper {
+            perspective: 1200px;
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .booster-container-hover {
+            width: 310px;
+            height: 520px;
+            position: relative;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.4s ease;
+        }
+
+        .booster-container-hover:hover {
+            transform: rotateY(8deg) rotateX(4deg) translateY(-8px);
+            filter: drop-shadow(-20px 40px 30px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 35px rgba(56, 189, 248, 0.4));
+        }
+
+        .custom-booster-pack {
+            width: 310px;
+            height: 520px;
+            position: relative;
+            background: #03050a;
+            border-radius: 8px;
+            box-shadow: 0 30px 60px -10px rgba(0, 0, 0, 0.95);
+            overflow: hidden;
+        }
+
+        .booster-bg-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Pièce supérieure découpée (Pliure du haut) */
+        .crimp-seal-top-severed {
+            position: absolute;
+            top: 0; left: 0;
+            width: 310px; height: 60px;
+            z-index: 40;
+            pointer-events: none;
+            overflow: hidden;
+            clip-path: polygon(
+                0% 0%, 100% 0%,
+                100% 45px, 85% 55px, 70% 48px, 55% 58px, 40% 46px, 25% 56px, 10% 48px, 0% 55px
+            );
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.5s ease;
+        }
+
+        .crimp-seal-top-severed img {
+            width: 310px;
+            height: 520px;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /* Corps principal du paquet après déchirure */
+        .booster-body-severed {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 10;
+            clip-path: polygon(
+                0% 55px, 10% 48px, 25% 56px, 40% 46px, 55% 58px, 70% 48px, 85% 55px, 100% 45px,
+                100% 100%, 0% 100%
+            );
+            overflow: hidden;
+        }
+
+        .booster-body-severed img {
+            width: 310px;
+            height: 520px;
+            object-fit: cover;
+        }
+
+        .foil-reflection {
+            position: absolute; inset: 0;
+            background: linear-gradient(
+                105deg,
+                transparent 25%,
+                rgba(255, 255, 255, 0.15) 42%,
+                rgba(255, 255, 255, 0.35) 50%,
+                rgba(255, 255, 255, 0.15) 58%,
+                transparent 75%
+            );
+            pointer-events: none; z-index: 25;
+        }
+
+        .cutting-laser {
+            position: absolute; top: 48px; left: 0; height: 4px; width: 0%;
+            background: linear-gradient(90deg, #38bdf8, #ffffff, #f59e0b);
+            box-shadow: 0 0 15px #ffffff, 0 0 25px #f59e0b;
+            z-index: 50; pointer-events: none; opacity: 0;
+        }
+
+        .anim-cut-laser { animation: laserCut 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        @keyframes laserCut {
+            0% { width: 0%; opacity: 1; }
+            80% { width: 100%; opacity: 1; }
+            100% { width: 100%; opacity: 0; }
+        }
+
+        .anim-top-tear { animation: topTearAway 0.6s 0.25s cubic-bezier(0.25, 1, 0.5, 1) forwards !important; }
+        @keyframes topTearAway {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            50% { transform: translateY(-40px) translateX(25px) rotate(15deg); opacity: 0.9; }
+            100% { transform: translateY(-100px) translateX(60px) rotate(32deg); opacity: 0; }
+        }
+
+        .anim-pack-open { animation: packOpenGlow 0.6s 0.2s ease-out forwards; }
+        @keyframes packOpenGlow {
+            0% { filter: brightness(1); }
+            50% { filter: brightness(2) drop-shadow(0 0 45px rgba(56, 189, 248, 0.95)); }
+            100% { filter: brightness(1); }
+        }
+
+        .textured-panel { background: linear-gradient(180deg, rgba(15, 23, 42, 0.9) 0%, rgba(3, 7, 18, 0.95) 100%); border: 1px solid rgba(255, 255, 255, 0.08); }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #03050a; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+        .tab-collection {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row h-screen selection:bg-cyan-500 selection:text-white">
+
+    <!-- BARRE LATÉRALE GAUCHE -->
+    <aside class="w-full md:w-72 bg-[#080b12] border-b md:border-b-0 md:border-r border-slate-800 flex flex-col z-30 shrink-0 shadow-2xl relative">
+        <div class="p-6 border-b border-slate-800/80 flex flex-col items-center md:items-start space-y-4">
+            <div class="flex items-center space-x-3 w-full justify-center md:justify-start">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
+                    <i class="fa-solid fa-bolt text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black tracking-wider uppercase font-sport text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400 leading-tight">SPORTS TCG</h1>
+                    <p class="text-[10px] text-slate-400 font-medium">100% ATHLÈTES ACTIFS</p>
+                </div>
+            </div>
+            <div class="w-full text-center md:text-left">
+                <span class="inline-block bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest"><i class="fa-solid fa-circle-check mr-1"></i> Packs Limités</span>
+            </div>
+        </div>
+
+        <nav class="flex md:flex-col gap-2 p-4 overflow-x-auto md:overflow-visible flex-grow md:flex-grow-0">
+            <button onclick="switchMainTab('tab-boosters')" id="nav-tab-boosters" class="main-tab-btn w-full px-4 py-3.5 rounded-xl font-bold font-sport text-sm uppercase tracking-wider flex items-center justify-center md:justify-start gap-3 bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)] transition-all shrink-0">
+                <i class="fa-solid fa-box-open w-5 text-center"></i><span>Ouvrir Boosters</span>
+            </button>
+            <button onclick="switchMainTab('tab-deck')" id="nav-tab-deck" class="main-tab-btn w-full px-4 py-3.5 rounded-xl font-bold font-sport text-sm uppercase tracking-wider flex items-center justify-center md:justify-start gap-3 text-slate-400 hover:bg-slate-800/50 hover:text-white transition-all shrink-0 border border-transparent">
+                <i class="fa-solid fa-users w-5 text-center"></i><span>Mon Équipe</span>
+            </button>
+            <button onclick="switchMainTab('tab-collection')" id="nav-tab-collection" class="main-tab-btn w-full px-4 py-3.5 rounded-xl font-bold font-sport text-sm uppercase tracking-wider flex items-center justify-center md:justify-start gap-3 text-slate-400 hover:bg-slate-800/50 hover:text-white transition-all shrink-0 border border-transparent">
+                <i class="fa-solid fa-book-open w-5 text-center"></i><span>Collection</span>
+            </button>
+        </nav>
+
+        <div class="mt-auto p-6 hidden md:flex flex-col space-y-3 bg-slate-900/30 border-t border-slate-800/80">
+            <h4 class="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Progression Globale</h4>
+            <div class="flex justify-between items-center text-sm font-sport font-bold">
+                <span class="text-slate-300">Cartes débloquées</span>
+                <span class="text-amber-400"><span id="nav-counter">0</span> / <span class="total-cards-label">0</span></span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-1.5 mt-1 overflow-hidden">
+                <div id="progress-bar-fill" class="bg-gradient-to-r from-amber-500 to-yellow-300 h-1.5 rounded-full" style="width: 0%"></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ZONE PRINCIPALE -->
+    <main class="flex-1 h-full overflow-y-auto relative z-10 flex flex-col">
+        <div class="bg-pattern"></div>
+        
+        <div class="w-full max-w-7xl mx-auto p-4 md:p-8 flex-grow flex flex-col relative z-10">
+            
+            <!-- ONGLET 1: BOOSTERS -->
+            <section id="tab-boosters" class="tab-content active h-full w-full flex flex-col items-center">
+                
+                <!-- COMPTEUR DE PAQUETS -->
+                <div class="flex flex-col items-center mb-4 space-y-2 pt-4">
+                    <div class="bg-slate-900/80 border border-slate-700/80 px-6 py-2.5 rounded-2xl flex items-center gap-4 shadow-xl">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-box-open text-amber-400 text-lg"></i>
+                            <span class="text-sm font-bold font-sport text-white">Paquets dispo :</span>
+                            <span id="pack-count-badge" class="bg-amber-500/20 text-amber-300 font-black px-2.5 py-0.5 rounded-lg border border-amber-500/30 text-sm">0/12</span>
+                        </div>
+                        <div class="h-4 w-[1px] bg-slate-700"></div>
+                        <div class="flex items-center gap-2 text-xs text-slate-400 font-sport">
+                            <i class="fa-regular fa-clock text-cyan-400"></i>
+                            <span>Prochain : <strong id="pack-cooldown-timer" class="text-cyan-300 font-mono">00:00:00</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-center justify-center min-h-[65vh]">
+                    <div class="booster-3d-wrapper z-10" onclick="startPackOpeningProcess()">
+                        <div class="booster-container-hover" id="booster-container">
+                            <div class="custom-booster-pack">
+                                <div id="laser-line" class="cutting-laser"></div>
+                                <div id="booster-top-piece" class="crimp-seal-top-severed">
+                                    <img src="https://i.ibb.co/L5QxTh5/sports-booster-pack.jpg" alt="Partie haute du booster" onerror="this.src='image_a6a019.jpg'">
+                                </div>
+                                <div id="main-booster-card" class="booster-body-severed">
+                                    <img src="https://i.ibb.co/L5QxTh5/sports-booster-pack.jpg" alt="Booster de sport" class="booster-bg-img" onerror="this.src='image_a6a019.jpg'">
+                                </div>
+                                <div class="foil-reflection"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ONGLET 2: MON ÉQUIPE -->
+            <section id="tab-deck" class="tab-content py-4 space-y-6">
+                <h2 class="text-2xl font-black font-sport text-white tracking-widest uppercase mb-6 border-b border-slate-800 pb-3">Gestion de l'équipe</h2>
+                <div class="textured-panel rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                    <h3 class="text-xl font-bold font-sport uppercase tracking-wide text-white flex items-center gap-2 mb-6 relative z-10">
+                        <i class="fa-solid fa-users text-cyan-400"></i> Équipe Titulaire (5 Athlètes)
+                    </h3>
+                    <div id="active-deck-slots" class="grid grid-cols-1 sm:grid-cols-5 gap-4 relative z-10"></div>
+                </div>
+                <div class="textured-panel p-6 rounded-3xl space-y-4">
+                    <h4 class="text-sm font-bold font-sport uppercase text-amber-300 flex items-center gap-2">
+                        <i class="fa-solid fa-plus-circle"></i> Ajouter un athlète possédé
+                    </h4>
+                    <div id="deck-quick-add-container" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 max-h-[40vh] overflow-y-auto pr-2"></div>
+                </div>
+            </section>
+
+            <!-- ONGLET 3: COLLECTION -->
+            <section id="tab-collection" class="tab-content pb-4">
+                <h2 class="text-2xl font-black font-sport text-white tracking-widest uppercase mb-0 border-b border-slate-800 pb-3">Base de données globale</h2>
+                
+                <div class="textured-panel p-5 rounded-3xl space-y-4 sticky top-0 z-20 shadow-xl mt-2">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800/50 pb-4">
+                        <span id="collection-counter-text" class="text-sm text-amber-400 font-black font-sport tracking-wider bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20">0 / <span class="total-cards-label">0</span> DÉBLOQUÉS</span>
+                        <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                            <div class="relative w-full sm:w-64">
+                                <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 text-xs"></i>
+                                <input id="search-input" oninput="filterCards()" type="text" placeholder="Rechercher un athlète..." class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-sm text-white outline-none focus:border-cyan-500 transition-colors">
+                            </div>
+                            <button onclick="toggleOwnedFilter()" id="btn-toggle-owned" class="w-full sm:w-auto px-4 py-2 bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl text-sm font-bold transition whitespace-nowrap">Voir Possédés</button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 overflow-x-auto pb-2" id="sports-tabs-bar"></div>
+                </div>
+                
+                <div id="cards-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-12 mt-4"></div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Modal Ouverture -->
+    <div id="pack-opening-modal" class="hidden fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4">
+        <div class="text-center space-y-6 max-w-5xl w-full flex flex-col items-center">
+            <h4 id="pack-progress-title" class="text-lg font-bold font-sport text-cyan-400 uppercase tracking-widest bg-cyan-900/30 px-6 py-2 rounded-full border border-cyan-500/30"></h4>
+            <div id="pack-single-card-container" onclick="revealNextCardInPack()" class="cursor-pointer transition-transform hover:scale-105"></div>
+            <button onclick="closePackOpening()" id="finish-pack-btn" class="hidden py-3 px-8 bg-gradient-to-r from-emerald-400 to-emerald-600 text-slate-950 font-black rounded-xl text-sm uppercase shadow-[0_0_20px_rgba(52,211,153,0.3)] hover:scale-105 transition-transform mt-4">Ajouter à la collection</button>
+        </div>
+    </div>
+
+    <script>
+        const S_FOOT=0, S_BASK=1, S_CYCL=2, S_TENN=3, S_F1=4, S_RUGB=5, S_ATHL=6, S_NATA=7, S_COMB=8, S_HAND=9;
+        const R_COM=0, R_PEU=1, R_RAR=2, R_ULT=3, R_LEG=4, R_MYT=5;
+
+        const rawData = [
+            ["Lionel Messi",S_FOOT,0,99], ["Cristiano Ronaldo",S_FOOT,0,97], ["Kylian Mbappé",S_FOOT,0,97], ["Erling Haaland",S_FOOT,0,96], 
+            ["Vinícius Júnior",S_FOOT,0,96], ["Jude Bellingham",S_FOOT,0,96], ["Rodri",S_FOOT,0,96], ["Kevin De Bruyne",S_FOOT,0,95], 
+            ["Harry Kane",S_FOOT,0,95], ["Mohamed Salah",S_FOOT,0,94], ["Phil Foden",S_FOOT,0,94], ["Bukayo Saka",S_FOOT,0,93], 
+            ["Lamine Yamal",S_FOOT,0,94], ["Florian Wirtz",S_FOOT,0,93], ["Jamal Musiala",S_FOOT,0,93], ["Rafael Leão",S_FOOT,0,92], 
+            ["Khvicha Kvaratskhelia",S_FOOT,0,92], ["Victor Osimhen",S_FOOT,0,92], ["Lautaro Martínez",S_FOOT,0,93], ["Antoine Griezmann",S_FOOT,0,94], 
+            ["Robert Lewandowski",S_FOOT,0,94], ["Son Heung-min",S_FOOT,0,92], ["Alisson Becker",S_FOOT,0,93], ["Thibaut Courtois",S_FOOT,0,93], 
+            ["Mike Maignan",S_FOOT,0,92], ["Marc-André ter Stegen",S_FOOT,0,91], ["Jan Oblak",S_FOOT,0,91], 
+            ["Gianluigi Donnarumma",S_FOOT,0,91], ["Emiliano Martínez",S_FOOT,0,91], ["Rúben Dias",S_FOOT,0,92], ["William Saliba",S_FOOT,0,91], 
+            ["Virgil van Dijk",S_FOOT,0,94], ["Antonio Rüdiger",S_FOOT,0,91], ["Ronald Araújo",S_FOOT,0,90], ["Marquinhos",S_FOOT,0,90], 
+            ["Alessandro Bastoni",S_FOOT,0,90], ["Gabriel Magalhães",S_FOOT,0,89], ["Joško Gvardiol",S_FOOT,0,90], ["Achraf Hakimi",S_FOOT,0,91], 
+            ["Trent Alexander-Arnold",S_FOOT,0,90], ["Kyle Walker",S_FOOT,0,90], ["Théo Hernandez",S_FOOT,0,91], ["Alphonso Davies",S_FOOT,0,90], 
+            ["Jeremie Frimpong",S_FOOT,0,90], ["Álex Grimaldo",S_FOOT,0,90], ["Federico Dimarco",S_FOOT,0,90], ["Declan Rice",S_FOOT,0,92], 
+            ["Aurélien Tchouaméni",S_FOOT,0,90], ["Eduardo Camavinga",S_FOOT,0,90], ["Federico Valverde",S_FOOT,0,92], ["Nicolò Barella",S_FOOT,0,91], 
+            ["Martin Ødegaard",S_FOOT,0,92], ["Pedri",S_FOOT,0,91], ["Gavi",S_FOOT,0,89, "Gavi_(football)"], ["Alexis Mac Allister",S_FOOT,0,90], 
+            ["Bruno Fernandes",S_FOOT,0,91], ["Bernardo Silva",S_FOOT,0,91], ["Cole Palmer",S_FOOT,0,92], ["Ousmane Dembélé",S_FOOT,0,90], 
+            ["Raphinha",S_FOOT,0,90], ["Rodrygo",S_FOOT,0,90], ["Gabriel Martinelli",S_FOOT,0,89], ["Randal Kolo Muani",S_FOOT,0,87], 
+            ["Marcus Thuram",S_FOOT,0,89], ["Alexander Isak",S_FOOT,0,89], ["Ollie Watkins",S_FOOT,0,89], ["Darwin Núñez",S_FOOT,0,88], 
+            ["Diogo Jota",S_FOOT,0,88], ["Luis Díaz",S_FOOT,0,89, "Luis_Díaz_(football, 1997)"], ["Cody Gakpo",S_FOOT,0,88], ["Leroy Sané",S_FOOT,0,90], 
+            ["Kingsley Coman",S_FOOT,0,89], ["Serge Gnabry",S_FOOT,0,88], ["Granit Xhaka",S_FOOT,0,89], ["Hakan Çalhanoğlu",S_FOOT,0,90], 
+            ["Henrikh Mkhitaryan",S_FOOT,0,87], ["Bruno Guimarães",S_FOOT,0,90], ["Lucas Paquetá",S_FOOT,0,88], ["Douglas Luiz",S_FOOT,0,88], 
+            ["João Palhinha",S_FOOT,0,89], ["Vitinha",S_FOOT,0,90,"Vitinha_(football, 13-02-2000)"], ["João Neves",S_FOOT,0,89], ["Warren Zaïre-Emery",S_FOOT,0,88], 
+            ["Bradley Barcola",S_FOOT,0,89], ["Nuno Mendes",S_FOOT,0,88, "Nuno_Mendes_(football, 2002)"], ["Manuel Ugarte",S_FOOT,0,87], ["Gonçalo Ramos",S_FOOT,0,87], 
+            ["João Félix",S_FOOT,0,87], ["João Cancelo",S_FOOT,0,88], ["Matthijs de Ligt",S_FOOT,0,88], ["Noussair Mazraoui",S_FOOT,0,87], 
+            ["Kobbie Mainoo",S_FOOT,0,88], ["Alejandro Garnacho",S_FOOT,0,88], ["Rasmus Højlund",S_FOOT,0,87], ["Marcus Rashford",S_FOOT,0,87], 
+            ["Mason Mount",S_FOOT,0,85], ["Reece James",S_FOOT,0,88], ["Ben Chilwell",S_FOOT,0,85], ["Enzo Fernández",S_FOOT,0,88], 
+            ["Moisés Caicedo",S_FOOT,0,88], ["Raheem Sterling",S_FOOT,0,86], ["Nicolas Jackson",S_FOOT,0,87], ["Christopher Nkunku",S_FOOT,0,88], 
+            ["Moussa Diaby",S_FOOT,0,87], ["Youri Tielemans",S_FOOT,0,87], ["John McGinn",S_FOOT,0,87], ["Leon Bailey",S_FOOT,0,87], 
+            ["Jarrod Bowen",S_FOOT,0,88], ["Mohammed Kudus",S_FOOT,0,88], ["Julián Álvarez",S_FOOT,0,90], ["Jérémy Doku",S_FOOT,0,88], 
+            ["Jack Grealish",S_FOOT,0,87], ["Manuel Akanji",S_FOOT,0,89], ["Nathan Aké",S_FOOT,0,88], ["John Stones",S_FOOT,0,90], 
+            ["Jules Koundé",S_FOOT,0,90], ["Pau Cubarsí",S_FOOT,0,88], ["Alejandro Balde",S_FOOT,0,87], ["Dani Olmo",S_FOOT,0,90], 
+            ["Éder Militão",S_FOOT,0,90], ["Ferland Mendy",S_FOOT,0,88], ["Dani Carvajal",S_FOOT,0,91], ["Arda Güler",S_FOOT,0,87], ["Álvaro Morata",S_FOOT,0,88], ["Christian Pulisic",S_FOOT,0,88], ["Ruben Loftus-Cheek",S_FOOT,0,85], 
+            ["Fikayo Tomori",S_FOOT,0,87], ["Benjamin Pavard",S_FOOT,0,88], ["Yann Sommer",S_FOOT,0,89], ["Dušan Vlahović",S_FOOT,0,89], 
+            ["Federico Chiesa",S_FOOT,0,87], ["Gleison Bremer",S_FOOT,0,89], ["Michele Di Gregorio",S_FOOT,0,87], ["Ademola Lookman",S_FOOT,0,89], 
+            ["Teun Koopmeiners",S_FOOT,0,88], ["Gianluca Scamacca",S_FOOT,0,87], ["Xavi Simons",S_FOOT,0,90], ["Loïs Openda",S_FOOT,0,89], 
+            ["Benjamin Šeško",S_FOOT,0,88], ["Nico Schlotterbeck",S_FOOT,0,88], ["Julian Brandt",S_FOOT,0,88], ["Karim Adeyemi",S_FOOT,0,87], 
+            ["Serhou Guirassy",S_FOOT,0,89], ["Jonathan David",S_FOOT,0,88], ["Leny Yoro",S_FOOT,0,87], ["Lucas Chevalier",S_FOOT,0,88], ["Neymar Jr", S_FOOT, 0, 1, "Neymar"],
+            ["Alexia Putellas",S_FOOT,0,99,"Alexia_Putellas"], ["Aitana Bonmatí",S_FOOT,0,98,"Aitana_Bonmatí"], ["Sam Kerr",S_FOOT,0,96,"Sam_Kerr"], 
+            ["Vivianne Miedema",S_FOOT,0,95,"Vivianne_Miedema"], ["Alex Morgan",S_FOOT,0,95,"Alex_Morgan"], ["Megan Rapinoe",S_FOOT,0,94,"Megan_Rapinoe"], 
+            ["Wendie Renard",S_FOOT,0,95,"Wendie_Renard"], ["Marie-Antoinette Katoto",S_FOOT,0,93,"Marie-Antoinette_Katoto"], ["Kadidiatou Diani",S_FOOT,0,93,"Kadidiatou_Diani"], 
+            ["Eugénie Le Sommer",S_FOOT,0,92,"Eugénie_Le Sommer"], ["Grace Geyoro",S_FOOT,0,91,"Grace_Geyoro"], ["Amandine Henry",S_FOOT,0,92,"Amandine_Henry"], 
+            ["Sakina Karchaoui",S_FOOT,0,92,"Sakina_Karchaoui"], ["Selma Bacha",S_FOOT,0,91,"Selma_Bacha"], ["Christiane Endler",S_FOOT,0,94,"Christiane_Endler"], 
+            ["Lucy Bronze",S_FOOT,0,95,"Lucy_Bronze"], ["Alessia Russo",S_FOOT,0,92,"Alessia_Russo"], ["Lauren Hemp",S_FOOT,0,92,"Lauren_Hemp"], 
+            ["Mary Earps",S_FOOT,0,93,"Mary_Earps"], ["Beth Mead",S_FOOT,0,93,"Beth_Mead"], ["Keira Walsh",S_FOOT,0,92,"Keira_Walsh"], 
+            ["Millie Bright",S_FOOT,0,91,"Millie_Bright"], ["Chloe Kelly",S_FOOT,0,91,"Chloe_Kelly"], ["Sophia Smith",S_FOOT,0,94,"Sophia_Smith"], 
+            ["Trinity Rodman",S_FOOT,0,92,"Trinity_Rodman"], ["Mallory Swanson",S_FOOT,0,92,"Mallory_Swanson"], ["Rose Lavelle",S_FOOT,0,91,"Rose_Lavelle"], 
+            ["Naomi Girma",S_FOOT,0,92,"Naomi_Girma"], ["Alyssa Naeher",S_FOOT,0,91,"Alyssa_Naeher"], ["Lindsey Horan",S_FOOT,0,92,"Lindsey_Horan"], 
+            ["Caroline Graham Hansen",S_FOOT,0,94,"Caroline_Graham_Hansen"], ["Salma Paralluelo",S_FOOT,0,93,"Salma_Paralluelo"], 
+            ["Mapi León",S_FOOT,0,93,"María_Pilar_León"], ["Irene Paredes",S_FOOT,0,92,"Irene_Paredes"], ["Jenni Hermoso",S_FOOT,0,92,"Jennifer_Hermoso"], 
+            ["Mariona Caldentey",S_FOOT,0,91,"Mariona_Caldentey"], ["Olga Carmona",S_FOOT,0,91,"Olga_Carmona"], ["Ona Batlle",S_FOOT,0,92,"Ona_Batlle"], 
+            ["Toni Duggan",S_FOOT,0,88,"Toni_Duggan"], ["Fran Kirby",S_FOOT,0,90,"Fran_Kirby"], ["Hannah Hampton",S_FOOT,0,88,"Hannah_Hampton"], 
+            ["Leicy Santos",S_FOOT,0,88,"Leicy_Santos"], ["Mayra Ramírez",S_FOOT,0,89,"Mayra_Ramírez"], ["Linda Caicedo",S_FOOT,0,91,"Linda_Caicedo"], 
+            ["Barbra Banda",S_FOOT,0,90,"Barbra_Banda"], ["Racheal Kundananji",S_FOOT,0,89,"Racheal_Kundananji"], ["Asisat Oshoala",S_FOOT,0,91,"Asisat_Oshoala"], 
+            ["Chiamaka Nnadozie",S_FOOT,0,89,"Chiamaka_Nnadozie"], ["Rasheedat Ajibade",S_FOOT,0,88,"Rasheedat_Ajibade"], ["Estelle Cascarino",S_FOOT,0,87,"Estelle_Cascarino"], 
+            ["Delphine Cascarino",S_FOOT,0,91,"Delphine_Cascarino"], ["Sandy Baltimore",S_FOOT,0,88,"Sandy_Baltimore"], ["Sandie Toletti",S_FOOT,0,89,"Sandie_Toletti"], 
+            ["Constance Picaud",S_FOOT,0,87,"Constance_Picaud"], ["Kenza Dali",S_FOOT,0,88,"Kenza_Dali"], 
+            
+            ["Tadej Pogačar",S_CYCL,0,100], ["Jonas Vingegaard",S_CYCL,0,98], ["Remco Evenepoel",S_CYCL,0,98], ["Paul Seixas",S_CYCL,0,96], ["Mathieu van der Poel",S_CYCL,0,97], 
+            ["Wout van Aert",S_CYCL,0,96], ["Primož Roglič",S_CYCL,0,96], ["Mads Pedersen",S_CYCL,0,94], ["Jasper Philipsen",S_CYCL,0,95], 
+            ["Jonathan Milan",S_CYCL,0,93], ["Biniam Girmay",S_CYCL,0,93], ["Tim Merlier",S_CYCL,0,92], ["Juan Ayuso",S_CYCL,0,91], 
+            ["João Almeida",S_CYCL,0,91], ["Adam Yates",S_CYCL,0,92], ["Simon Yates",S_CYCL,0,91, "Simon_Yates_(cyclisme)"], ["Matteo Jorgenson",S_CYCL,0,92], 
+            ["Sepp Kuss",S_CYCL,0,91], ["Cian Uijtdebroeks",S_CYCL,0,89], ["Mattias Skjelmose",S_CYCL,0,91], ["Santiago Buitrago",S_CYCL,0,89], 
+            ["Ben Healy",S_CYCL,0,90, "Ben_Healy_(cyclisme)"], ["Tom Pidcock",S_CYCL,0,92], ["Joshua Tarling",S_CYCL,0,91], ["Filippo Ganna",S_CYCL,0,93], 
+            ["Stefan Küng",S_CYCL,0,90], ["Christophe Laporte",S_CYCL,0,91], ["Tiesj Benoot",S_CYCL,0,89], ["Matej Mohorič",S_CYCL,0,90], 
+            ["Fred Wright",S_CYCL,0,88], ["Arnaud De Lie",S_CYCL,0,91], ["Thibau Nys",S_CYCL,0,89], ["Kaden Groves",S_CYCL,0,90], 
+            ["Gerben Thijssen",S_CYCL,0,88], ["Sam Welsford",S_CYCL,0,87], ["Caleb Ewan",S_CYCL,0,87], ["Arnaud Démare",S_CYCL,0,86], 
+            ["Bryan Coquard",S_CYCL,0,87], ["Axel Zingle",S_CYCL,0,88], ["Romain Grégoire",S_CYCL,0,90], ["Lenny Martinez",S_CYCL,0,91], 
+            ["David Gaudu",S_CYCL,0,90], ["Valentin Madouas",S_CYCL,0,90], ["Kévin Vauquelin",S_CYCL,0,90], ["Carlos Rodríguez",S_CYCL,0,91,"Carlos_Rodríguez_(cyclisme)"], 
+            ["Alberto Bettiol",S_CYCL,0,89], ["Stefan Bissegger",S_CYCL,0,88], ["Magnus Sheffield",S_CYCL,0,88], ["Ben Turner",S_CYCL,0,85, "Ben_Turner_(cyclisme)"], 
+            ["Ben Tulett",S_CYCL,0,85], ["Luke Plapp",S_CYCL,0,87], ["Aleksandr Vlasov",S_CYCL,0,90, "Aleksandr_Vlasov_(cyclisme)"], ["Sergio Higuita",S_CYCL,0,87], 
+            ["Daniel Martínez",S_CYCL,0,91, "Daniel_Martínez_(cyclisme)"], ["Ben O'Connor",S_CYCL,0,92, "Ben_O'Connor_(cyclisme)"], ["Felix Gall",S_CYCL,0,91], ["Benoît Cosnefroy",S_CYCL,0,91], 
+            ["Paul Lapeira",S_CYCL,0,89], ["Dorian Godon",S_CYCL,0,88], ["Bruno Armirail",S_CYCL,0,88], ["Aurélien Paret-Peintre",S_CYCL,0,89], 
+            ["Valentin Paret-Peintre",S_CYCL,0,88], ["Bastien Tronchon",S_CYCL,0,86], ["Alex Baudin",S_CYCL,0,87], ["Clément Berthet",S_CYCL,0,87], 
+            ["Sander De Pestel",S_CYCL,0,83], ["Oliver Naesen",S_CYCL,0,86], 
+            ["Damien Touzé",S_CYCL,0,84], ["Nicolas Prodhomme",S_CYCL,0,85], ["Victor Lafay",S_CYCL,0,88], ["Sam Bennett",S_CYCL,0,88, "Sam_Bennett_(cyclisme)"], 
+            ["Laurence Pithie",S_CYCL,0,88], ["Paul Penhoët",S_CYCL,0,87], ["Ethan Vernon",S_CYCL,0,87], ["Nils Politt",S_CYCL,0,89], 
+            ["Tim Wellens",S_CYCL,0,90], ["Marc Hirschi",S_CYCL,0,92], ["Brandon McNulty",S_CYCL,0,90], ["Pavel Sivakov",S_CYCL,0,89], 
+            ["Marc Soler",S_CYCL,0,88], ["Isaac Del Toro",S_CYCL,0,90], ["Jan Christen",S_CYCL,0,89], ["António Morgado",S_CYCL,0,89], 
+            ["Maxim Van Gils",S_CYCL,0,91], ["Victor Campenaerts",S_CYCL,0,88], ["Lennert Van Eetvelt",S_CYCL,0,90], ["Andreas Kron",S_CYCL,0,88], 
+            ["Guillaume Martin",S_CYCL,0,88], ["Filippo Zana",S_CYCL,0,88], ["Eddie Dunbar",S_CYCL,0,88], ["Einer Rubio",S_CYCL,0,87], 
+            ["Lorenzo Fortunato",S_CYCL,0,87], ["Michael Storer",S_CYCL,0,87], ["Lennard Kämna",S_CYCL,0,88], ["Jai Hindley",S_CYCL,0,91], ["Richard Carapaz",S_CYCL,0,92], ["Neilson Powless",S_CYCL,0,89], ["Oier Lazkano",S_CYCL,0,89],
+            ["Demi Vollering",S_CYCL,0,99,"Demi_Vollering"], ["Annemiek van Vleuten",S_CYCL,0,98,"Annemiek_van_Vleuten"], ["Lotte Kopecky",S_CYCL,0,97,"Lotte_Kopecky"], 
+            ["Elisa Longo Borghini",S_CYCL,0,95,"Elisa_Longo_Borghini"], ["Katarzyna Niewiadoma",S_CYCL,0,95,"Katarzyna_Niewiadoma"], ["Lorena Wiebes",S_CYCL,0,95,"Lorena_Wiebes"], 
+            ["Marianne Vos",S_CYCL,0,97,"Marianne_Vos"], ["Chloé Dygert",S_CYCL,0,93,"Chloé_Dygert"], ["Grace Brown",S_CYCL,0,93,"Grace_Brown_(cyclisme)"], 
+            ["Marlen Reusser",S_CYCL,0,94,"Marlen_Reusser"], ["Shirin van Anrooij",S_CYCL,0,92,"Shirin_van_Anrooij"], ["Puck Pieterse",S_CYCL,0,93,"Puck_Pieterse"], 
+            ["Alison Jackson",S_CYCL,0,90,"Alison_Jackson"], ["Cecilie Uttrup Ludwig",S_CYCL,0,91,"Cecilie_Uttrup_Ludwig"], 
+            ["Juliette Berthet",S_CYCL,0,92,"Juliette_Berthet"], ["Audrey Cordon-Ragot",S_CYCL,0,90,"Audrey_Cordon-Ragot"], ["Evita Muzic",S_CYCL,0,91,"Evita_Muzic"], 
+            ["Cédrine Kerbaol",S_CYCL,0,91,"Cédrine_Kerbaol"], ["Marta Cavalli",S_CYCL,0,91,"Marta_Cavalli"], ["Elisa Balsamo",S_CYCL,0,93,"Elisa_Balsamo"], 
+            ["Chiara Consonni",S_CYCL,0,90,"Chiara_Consonni"], ["Silvia Persico",S_CYCL,0,90,"Silvia_Persico"], ["Gaia Realini",S_CYCL,0,91,"Gaia_Realini"], 
+            ["Charlotte Kool",S_CYCL,0,92,"Charlotte_Kool"], ["Mischa Bredewold",S_CYCL,0,90,"Mischa_Bredewold"], ["Femke Gerritse",S_CYCL,0,88,"Femke_Gerritse"], 
+            ["Ashleigh Moolman",S_CYCL,0,91,"Ashleigh_Moolman"], ["Mavi García",S_CYCL,0,90,"Mavi_García"], ["Kristen Faulkner",S_CYCL,0,93,"Kristen_Faulkner"], 
+            ["Taylor Knibb",S_CYCL,0,89,"Taylor_Knibb"], ["Niamh Fisher-Black",S_CYCL,0,90,"Niamh_Fisher-Black"], ["Blanka Vas",S_CYCL,0,90,"Blanka_Vas"], 
+
+            ["LeBron James",S_BASK,0,99], ["Stephen Curry",S_BASK,0,98], ["Giannis Antetokounmpo",S_BASK,0,98], 
+            ["Nikola Jokić",S_BASK,0,98], ["Luka Dončić",S_BASK,0,98], ["Victor Wembanyama",S_BASK,0,97], ["Kevin Durant",S_BASK,0,97], ["Joel Embiid",S_BASK,0,97], ["Jayson Tatum",S_BASK,0,96], 
+            ["Shai Gilgeous-Alexander",S_BASK,0,98], ["Anthony Edwards",S_BASK,0,95, "Anthony_Edwards_(basket-ball)"], ["Devin Booker",S_BASK,0,94], 
+            ["Ja Morant",S_BASK,0,93], ["Donovan Mitchell",S_BASK,0,93], ["Tyrese Haliburton",S_BASK,0,93], ["Jalen Brunson",S_BASK,0,94], 
+            ["Tyrese Maxey",S_BASK,0,92], ["Paolo Banchero",S_BASK,0,92], ["Chet Holmgren",S_BASK,0,91], ["Damian Lillard",S_BASK,0,92], 
+            ["Kyrie Irving",S_BASK,0,93], ["Anthony Davis",S_BASK,0,94], ["Bam Adebayo",S_BASK,0,91], ["Domantas Sabonis",S_BASK,0,91], 
+            ["Karl-Anthony Towns",S_BASK,0,91], ["Rudy Gobert",S_BASK,0,90], ["De'Aaron Fox",S_BASK,0,92], ["Kawhi Leonard",S_BASK,0,94], 
+            ["Paul George",S_BASK,0,91], ["Jimmy Butler",S_BASK,0,92], ["Jamal Murray",S_BASK,0,91], ["Zion Williamson",S_BASK,0,91], 
+            ["Brandon Ingram",S_BASK,0,90], ["Scottie Barnes",S_BASK,0,90], ["Pascal Siakam",S_BASK,0,90], ["Klay Thompson",S_BASK,0,88], 
+            ["Draymond Green",S_BASK,0,88], ["Jaylen Brown",S_BASK,0,94], ["Derrick White",S_BASK,0,90], ["Jrue Holiday",S_BASK,0,90], 
+            ["Kristaps Porziņģis",S_BASK,0,90], ["Julius Randle",S_BASK,0,90], ["Jalen Williams",S_BASK,0,91], ["Lauri Markkanen",S_BASK,0,90], 
+            ["Alperen Şengün",S_BASK,0,90], ["DeMar DeRozan",S_BASK,0,90], ["Trae Young",S_BASK,0,91], ["Dejounte Murray",S_BASK,0,89], 
+            ["LaMelo Ball",S_BASK,0,90], ["Brandon Miller",S_BASK,0,89, "Brandon_Miller_(basket-ball)"], ["Cade Cunningham",S_BASK,0,90], ["Jalen Duren",S_BASK,0,88], 
+            ["Evan Mobley",S_BASK,0,90], ["Darius Garland",S_BASK,0,89], ["Jarrett Allen",S_BASK,0,89], ["Franz Wagner",S_BASK,0,90], 
+            ["Jalen Suggs",S_BASK,0,88], ["Mikal Bridges",S_BASK,0,88], ["Cam Thomas",S_BASK,0,88], ["CJ McCollum",S_BASK,0,87], 
+            ["Herbert Jones",S_BASK,0,87], ["Aaron Gordon",S_BASK,0,88], ["Michael Porter Jr.",S_BASK,0,88], 
+            ["Bradley Beal",S_BASK,0,88], ["Jusuf Nurkić",S_BASK,0,86], ["Grayson Allen",S_BASK,0,86], ["Austin Reaves",S_BASK,0,87], 
+            ["D'Angelo Russell",S_BASK,0,86], ["Rui Hachimura",S_BASK,0,84], ["Josh Giddey",S_BASK,0,87], ["Coby White",S_BASK,0,88], 
+            ["Zach LaVine",S_BASK,0,87], ["Nikola Vučević",S_BASK,0,87], ["Alex Caruso",S_BASK,0,87], ["Jalen Green",S_BASK,0,88], 
+            ["Fred VanVleet",S_BASK,0,88], ["Dillon Brooks",S_BASK,0,86], ["Amen Thompson",S_BASK,0,87], ["Ausar Thompson",S_BASK,0,86], 
+            ["Jabari Smith Jr.",S_BASK,0,87], ["Keegan Murray",S_BASK,0,87], ["Malik Monk",S_BASK,0,87], ["Harrison Barnes",S_BASK,0,85], 
+            ["Jonathan Kuminga",S_BASK,0,87], ["Andrew Wiggins",S_BASK,0,86], ["Miles Bridges",S_BASK,0,87], 
+            ["Naz Reid",S_BASK,0,88], ["Jaden McDaniels",S_BASK,0,87], ["Mike Conley Jr",S_BASK,0,86, "Mike_Conley,_Jr."], 
+            ["Jerami Grant",S_BASK,0,87], ["Anfernee Simons",S_BASK,0,88], ["Shaedon Sharpe",S_BASK,0,87], ["Scoot Henderson",S_BASK,0,85], 
+            ["Deni Avdija",S_BASK,0,86], ["Kyle Kuzma",S_BASK,0,87], ["Jordan Poole",S_BASK,0,86], ["Bilal Coulibaly",S_BASK,0,87],
+            ["Caitlin Clark",S_BASK,0,99,"Caitlin_Clark"], ["A'ja Wilson",S_BASK,0,98,"A'ja_Wilson"], ["Breanna Stewart",S_BASK,0,97,"Breanna_Stewart"], 
+            ["Sabrina Ionescu",S_BASK,0,95,"Sabrina_Ionescu"], ["Diana Taurasi",S_BASK,0,96,"Diana_Taurasi"], ["Sue Bird",S_BASK,0,95,"Sue_Bird"], 
+            ["Candace Parker",S_BASK,0,96,"Candace_Parker"], ["Jonquel Jones",S_BASK,0,94,"Jonquel_Jones"], ["Napheesa Collier",S_BASK,0,94,"Napheesa_Collier"], 
+            ["Angel Reese",S_BASK,0,93,"Angel_Reese"], ["Cameron Brink",S_BASK,0,91,"Cameron_Brink"], ["Jewell Loyd",S_BASK,0,93,"Jewell_Loyd"], 
+            ["Chelsea Gray",S_BASK,0,93,"Chelsea_Gray"], ["Arike Ogunbowale",S_BASK,0,93,"Arike_Ogunbowale"], ["Kelsey Plum",S_BASK,0,92,"Kelsey_Plum"], 
+            ["Alyssa Thomas",S_BASK,0,93,"Alyssa_Thomas"], ["Jackie Young",S_BASK,0,92,"Jackie_Young"], ["Satou Sabally",S_BASK,0,92,"Satou_Sabally"], 
+            ["Valériane Ayayi",S_BASK,0,90,"Valériane_Ayayi"], ["Marine Fauthoux",S_BASK,0,89,"Marine_Fauthoux"], ["Gabby Williams",S_BASK,0,92,"Gabby_Williams"], 
+            ["Sandrine Gruda",S_BASK,0,92,"Sandrine_Gruda"], ["Iliana Rupert",S_BASK,0,90,"Iliana_Rupert"], ["Dominique Malonga",S_BASK,0,90,"Dominique_Malonga_(basket-ball)"], 
+            ["Janelle Salaün",S_BASK,0,88,"Janelle_Salaün"], ["Sarah Michel",S_BASK,0,87,"Sarah_Michel"], ["Alexia Chery",S_BASK,0,88,"Alexia_Chery"], 
+            ["Emma Meesseman",S_BASK,0,95,"Emma_Meesseman"], ["Julie Allemand",S_BASK,0,90,"Julie_Allemand"], ["Astou Ndour",S_BASK,0,89,"Astou_Ndour"], 
+
+            ["Armand Duplantis",S_ATHL,0,99], ["Noah Lyles",S_ATHL,0,98], ["Jakob Ingebrigtsen",S_ATHL,0,96], ["Karsten Warholm",S_ATHL,0,96], 
+            ["Ryan Crouser",S_ATHL,0,95], ["Gianmarco Tamberi",S_ATHL,0,94], ["Mutaz Essa Barshim",S_ATHL,0,94], ["Eliud Kipchoge",S_ATHL,0,97], 
+            ["Marcell Jacobs",S_ATHL,0,92], ["Letsile Tebogo",S_ATHL,0,94], ["Fred Kerley",S_ATHL,0,92], ["Christian Coleman",S_ATHL,0,91], 
+            ["Andre De Grasse",S_ATHL,0,92], ["Kenny Bednarek",S_ATHL,0,92], ["Erriyon Knighton",S_ATHL,0,91], ["Grant Holloway",S_ATHL,0,95], 
+            ["Rai Benjamin",S_ATHL,0,95], ["Alison dos Santos",S_ATHL,0,93], ["Emmanuel Wanyonyi",S_ATHL,0,93], ["Marco Arop",S_ATHL,0,92], 
+            ["Djamel Sedjati",S_ATHL,0,92], ["Cole Hocker",S_ATHL,0,92], ["Yared Nuguse",S_ATHL,0,91], ["Josh Kerr",S_ATHL,0,92], 
+            ["Timothy Cheruiyot",S_ATHL,0,91], ["Soufiane El Bakkali",S_ATHL,0,95], ["Lamecha Girma",S_ATHL,0,93], ["Grant Fisher",S_ATHL,0,91], 
+            ["Joshua Cheptegei",S_ATHL,0,95], ["Jacob Kiplimo",S_ATHL,0,92], ["Neeraj Chopra",S_ATHL,0,94], ["Arshad Nadeem",S_ATHL,0,94], 
+            ["Anderson Peters",S_ATHL,0,92], ["Ryan Zeze",S_ATHL,0,87], ["Sasha Zhoya",S_ATHL,0,88], ["Sha'Carri Richardson",S_ATHL,0,95], 
+            ["Shericka Jackson",S_ATHL,0,94], ["Julien Alfred",S_ATHL,0,95], ["Sydney McLaughlin-Levrone",S_ATHL,0,99], ["Femke Bol",S_ATHL,0,95],
+            ["Faith Kipyegon",S_ATHL,0,99,"Faith_Kipyegon"], ["Beatrice Chebet",S_ATHL,0,96,"Beatrice_Chebet"], ["Sifan Hassan",S_ATHL,0,97,"Sifan_Hassan"], 
+            ["Yulimar Rojas",S_ATHL,0,98,"Yulimar_Rojas"], ["Tigist Assefa",S_ATHL,0,95,"Tigist_Assefa"], ["Valarie Allman",S_ATHL,0,94,"Valarie_Allman"], 
+            ["Tara Davis-Woodhall",S_ATHL,0,93,"Tara_Davis-Woodhall"], ["Nafissatou Thiam",S_ATHL,0,97,"Nafissatou_Thiam"], ["Anita Włodarczyk",S_ATHL,0,96,"Anita_Włodarczyk"], 
+            ["Shelly-Ann Fraser-Pryce",S_ATHL,0,97,"Shelly-Ann_Fraser-Pryce"], ["Elaine Thompson-Herah",S_ATHL,0,98,"Elaine_Thompson-Herah"], ["Marileidy Paulino",S_ATHL,0,95,"Marileidy_Paulino"], 
+            ["Gabby Thomas",S_ATHL,0,94,"Gabby_Thomas"], ["Kirani James",S_ATHL,0,93,"Kirani_James"], ["Nia Ali",S_ATHL,0,91,"Nia_Ali"], 
+            ["Danielle Williams",S_ATHL,0,92,"Danielle_Williams"], ["Gianna Woodruff",S_ATHL,0,88,"Gianna_Woodruff"], ["Mariya Lasitskene",S_ATHL,0,94,"Mariya_Lasitskene"], 
+            ["Katarina Johnson-Thompson",S_ATHL,0,93,"Katarina_Johnson-Thompson"], ["Anouk Vetter",S_ATHL,0,91,"Anouk_Vetter"], ["Sandra Elkasević",S_ATHL,0,94,"Sandra_Perković"], 
+            ["Malaika Mihambo",S_ATHL,0,93,"Malaika_Mihambo"], ["Jemma Reekie",S_ATHL,0,90,"Jemma_Reekie"], ["Laura Muir",S_ATHL,0,92,"Laura_Muir"], 
+            ["Gudaf Tsegay",S_ATHL,0,94,"Gudaf_Tsegay"], ["Letesenbet Gidey",S_ATHL,0,95,"Letesenbet_Gidey"], ["Agnes Jebet Tirop",S_ATHL,0,91,"Agnes_Jebet_Tirop"], 
+            ["Cyréna Samba-Mayela",S_ATHL,0,92,"Cyréna_Samba-Mayela"], ["Alice Finot",S_ATHL,0,91,"Alice_Finot"], ["Rose Loga",S_ATHL,0,87,"Rose_Loga"], 
+            ["Melina Robert-Michon",S_ATHL,0,90,"Melina_Robert-Michon"], ["Rénelle Lamote",S_ATHL,0,90,"Rénelle_Lamote"], ["Louise Maraval",S_ATHL,0,89,"Louise_Maraval"], 
+
+            ["Novak Djokovic",S_TENN,0,99], ["Carlos Alcaraz",S_TENN,0,96], ["Jannik Sinner",S_TENN,0,96], ["Daniil Medvedev",S_TENN,0,94], 
+            ["Alexander Zverev",S_TENN,0,93], ["Stefanos Tsitsipas",S_TENN,0,91], ["Andrey Rublev",S_TENN,0,91], ["Casper Ruud",S_TENN,0,91], 
+            ["Holger Rune",S_TENN,0,90], ["Taylor Fritz",S_TENN,0,91], ["Ben Shelton",S_TENN,0,89], ["Frances Tiafoe",S_TENN,0,89], 
+            ["Alex de Minaur",S_TENN,0,90], ["Ugo Humbert",S_TENN,0,89], ["Grigor Dimitrov",S_TENN,0,90], ["Hubert Hurkacz",S_TENN,0,90], 
+            ["Tommy Paul",S_TENN,0,89], ["Sebastian Korda",S_TENN,0,88], ["Arthur Fils",S_TENN,0,89], ["Iga Świątek",S_TENN,0,96], 
+            ["Aryna Sabalenka",S_TENN,0,95], ["Coco Gauff",S_TENN,0,93], ["Elena Rybakina",S_TENN,0,93], ["Jessica Pegula",S_TENN,0,92], 
+            ["Zheng Qinwen",S_TENN,0,92], ["Markéta Vondroušová",S_TENN,0,91], ["Maria Sakkari",S_TENN,0,90], ["Ons Jabeur",S_TENN,0,90], 
+            ["Jasmine Paolini",S_TENN,0,91], ["Mirra Andreeva",S_TENN,0,89],
+            ["Serena Williams",S_TENN,0,99,"Serena_Williams"], ["Venus Williams",S_TENN,0,96,"Venus_Williams"], ["Naomi Osaka",S_TENN,0,95,"Naomi_Osaka"], 
+            ["Barbora Krejčíková",S_TENN,0,93,"Barbora_Krejčíková"], ["Emma Raducanu",S_TENN,0,91,"Emma_Raducanu"], ["Caroline Garcia",S_TENN,0,92,"Caroline_Garcia"], 
+            ["Danielle Collins",S_TENN,0,91,"Danielle_Collins"], ["Madison Keys",S_TENN,0,91,"Madison_Keys"], ["Victoria Azarenka",S_TENN,0,92,"Victoria_Azarenka"], 
+            ["Petra Kvitová",S_TENN,0,93,"Petra_Kvitová"], ["Simona Halep",S_TENN,0,94,"Simona_Halep"], ["Angelique Kerber",S_TENN,0,93,"Angelique_Kerber"], 
+            ["Garbiñe Muguruza",S_TENN,0,92,"Garbiñe_Muguruza"], ["Elina Svitolina",S_TENN,0,92,"Elina_Svitolina"], ["Beatriz Haddad Maia",S_TENN,0,90,"Beatriz_Haddad_Maia"], 
+            ["Daria Kasatkina",S_TENN,0,90,"Daria_Kasatkina"], ["Jeļena Ostapenko",S_TENN,0,91,"Jeļena_Ostapenko"], ["Paula Badosa",S_TENN,0,89,"Paula_Badosa"], 
+            ["Clara Burel",S_TENN,0,87,"Clara_Burel"], ["Diane Parry",S_TENN,0,87,"Diane_Parry"], ["Varvara Gracheva",S_TENN,0,86,"Varvara_Gracheva"], 
+            ["Alizé Cornet",S_TENN,0,88,"Alizé_Cornet"], ["Kristina Mladenovic",S_TENN,0,86,"Kristina_Mladenovic"], ["Fiona Ferro",S_TENN,0,84,"Fiona_Ferro"], 
+            ["Leylah Fernandez",S_TENN,0,90,"Leylah_Fernandez"], ["Belinda Bencic",S_TENN,0,91,"Belinda_Bencic"], ["Maria Sharapova",S_TENN,0,95,"Maria_Sharapova"], 
+
+            ["Max Verstappen",S_F1,0,99], ["Lewis Hamilton",S_F1,0,98], ["Lando Norris",S_F1,0,95], ["Charles Leclerc",S_F1,0,94], ["Oscar Piastri",S_F1,0,93], 
+            ["Carlos Sainz Jr.",S_F1,0,92], ["George Russell",S_F1,0,91], ["Fernando Alonso",S_F1,0,92], 
+            ["Sergio Pérez",S_F1,0,90], ["Lance Stroll",S_F1,0,87], ["Yuki Tsunoda",S_F1,0,89], ["Liam Lawson",S_F1,0,88], 
+            ["Alexander Albon",S_F1,0,90], ["Franco Colapinto",S_F1,0,89], ["Esteban Ocon",S_F1,0,88], ["Pierre Gasly",S_F1,0,89], 
+            ["Nico Hülkenberg",S_F1,0,89], ["Kevin Magnussen",S_F1,0,87], ["Valtteri Bottas",S_F1,0,87], ["Zhou Guanyu",S_F1,0,85], 
+            ["Oliver Bearman",S_F1,0,88], ["Andrea Kimi Antonelli",S_F1,0,88], ["Jack Doohan",S_F1,0,85], ["Gabriel Bortoleto",S_F1,0,86],
+            ["Michèle Mouton",S_F1,0,96,"Michèle_Mouton"], ["Danica Patrick",S_F1,0,94,"Danica_Patrick"], ["Tatiana Calderón",S_F1,0,90,"Tatiana_Calderón"], 
+            ["Jamie Chadwick",S_F1,0,93,"Jamie_Chadwick"], ["Abbi Pulling",S_F1,0,91,"Abbi_Pulling"], ["Doriane Pin",S_F1,0,92,"Doriane_Pin"], 
+            ["Marta García",S_F1,0,90,"Marta_García_Lopez"], ["Bianca Bustamante",S_F1,0,89,"Bianca_Bustamante"], ["Lilou Wadoux",S_F1,0,90,"Lilou_Wadoux"], 
+            ["Simona de Silvestro",S_F1,0,89,"Simona_de_Silvestro"], ["Sarah Bovy",S_F1,0,89,"Sarah_Bovy"], 
+            ["Rahel Frey",S_F1,0,89,"Rahel_Frey"], ["Katherine Legge",S_F1,0,88,"Katherine_Legge"], 
+
+            ["Antoine Dupont",S_RUGB,0,99], ["Siya Kolisi",S_RUGB,0,95], ["Ardie Savea",S_RUGB,0,96], ["Eben Etzebeth",S_RUGB,0,95], 
+            ["Pieter-Steph du Toit",S_RUGB,0,94], ["Cheslin Kolbe",S_RUGB,0,94], ["Damian Penaud",S_RUGB,0,94], ["Romain Ntamack",S_RUGB,0,93], 
+            ["Thomas Ramos",S_RUGB,0,92], ["Grégory Alldritt",S_RUGB,0,93], ["Julien Marchand",S_RUGB,0,92], ["Cyril Baille",S_RUGB,0,91], 
+            ["Charles Ollivon",S_RUGB,0,91], ["Beauden Barrett",S_RUGB,0,94], ["Jordie Barrett",S_RUGB,0,92], ["Will Jordan",S_RUGB,0,93], 
+            ["Rieko Ioane",S_RUGB,0,91], ["Caelan Doris",S_RUGB,0,93], ["Hugo Keenan",S_RUGB,0,92], ["Dan Sheehan",S_RUGB,0,92],
+            ["Romane Ménager",S_RUGB,0,94,"Romane_Ménager"], ["Marine Ménager",S_RUGB,0,92,"Marine_Ménager"], ["Jessy Trémoulière",S_RUGB,0,97,"Jessy_Trémoulière"], 
+            ["Safi N'Diaye",S_RUGB,0,95,"Safi_N'Diaye"], ["Caroline Drouin",S_RUGB,0,93,"Caroline_Drouin"], ["Agathe Sochat",S_RUGB,0,91,"Agathe_Sochat"], 
+            ["Manae Feleu",S_RUGB,0,91,"Manae_Feleu"], 
+            ["Chloé Jacquet",S_RUGB,0,90,"Chloé_Jacquet"], ["Carla Arbez",S_RUGB,0,89,"Carla_Arbez"], ["Charlotte Escudero",S_RUGB,0,91,"Charlotte_Escudero"], 
+            ["Portia Woodman",S_RUGB,0,98,"Portia_Woodman"], ["Ruby Tui",S_RUGB,0,96,"Ruby_Tui"], ["Sarah Hirini",S_RUGB,0,95,"Sarah_Hirini"], 
+            ["Ruahei Demant",S_RUGB,0,94,"Ruahei_Demant"], ["Stacey Waaka",S_RUGB,0,94,"Stacey_Waaka"], ["Emily Scarratt",S_RUGB,0,96,"Emily_Scarratt"], 
+            ["Sarah Hunter",S_RUGB,0,95,"Sarah_Hunter"], ["Zoe Aldcroft",S_RUGB,0,93,"Zoe_Aldcroft"], ["Abby Dow",S_RUGB,0,92,"Abby_Dow"], 
+            ["Ellie Kildunne",S_RUGB,0,93,"Ellie_Kildunne"], ["Marlie Packer",S_RUGB,0,94,"Marlie_Packer"], 
+
+            ["Léon Marchand",S_NATA,0,99], ["David Popovici",S_NATA,0,96], ["Pan Zhanle",S_NATA,0,96], ["Caeleb Dressel",S_NATA,0,95], 
+            ["Adam Peaty",S_NATA,0,94], ["Bobby Finke",S_NATA,0,93], ["Kristof Milak",S_NATA,0,94], 
+            ["Ryan Murphy",S_NATA,0,92], ["Katie Ledecky",S_NATA,0,98], ["Kaylee McKeown",S_NATA,0,95], 
+            ["Summer McIntosh",S_NATA,0,95], ["Sarah Sjöström",S_NATA,0,95],
+            ["Emma McKeon",S_NATA,0,97,"Emma_McKeon"], ["Federica Pellegrini",S_NATA,0,96,"Federica_Pellegrini"], ["Katinka Hosszú",S_NATA,0,97,"Katinka_Hosszú"], 
+            ["Simone Manuel",S_NATA,0,94,"Simone_Manuel"], ["Regan Smith",S_NATA,0,94,"Regan_Smith"], ["Lilly King",S_NATA,0,94,"Lilly_King"], 
+            ["Kate Douglass",S_NATA,0,93,"Kate_Douglass"], ["Torri Huske",S_NATA,0,93,"Torri_Huske"], 
+            ["Charlotte Bonnet",S_NATA,0,91,"Charlotte_Bonnet"], ["Marie Wattel",S_NATA,0,92,"Marie_Wattel"], 
+            ["Melanie Henique",S_NATA,0,89,"Melanie_Henique"], ["Maggie Mac Neil",S_NATA,0,93,"Maggie_Mac_Neil"], 
+            ["Rūta Meilutytė",S_NATA,0,94,"Rūta_Meilutytė"], ["Zhang Yufei",S_NATA,0,93,"Zhang_Yufei"], 
+
+            ["Teddy Riner",S_COMB,0,99], ["Clarisse Agbegnenou",S_COMB,0,96], ["Jon Jones",S_COMB,0,97], ["Islam Makhachev",S_COMB,0,96], 
+            ["Alex Pereira",S_COMB,0,95], ["Ilia Topuria",S_COMB,0,93], ["Sean O'Malley",S_COMB,0,92], 
+            ["Naoya Inoue",S_COMB,0,96], ["Oleksandr Usyk",S_COMB,0,96], ["Terence Crawford",S_COMB,0,95],
+            ["Amanda Nunes",S_COMB,0,99,"Amanda_Nunes"], ["Valentina Shevchenko",S_COMB,0,97,"Valentina_Shevchenko"], ["Kayla Harrison",S_COMB,0,95,"Kayla_Harrison"], 
+            ["Zhang Weili",S_COMB,0,96,"Zhang_Weili"], ["Rose Namajunas",S_COMB,0,94,"Rose_Namajunas"], ["Alexa Grasso",S_COMB,0,93,"Alexa_Grasso"], 
+            ["Julianna Peña",S_COMB,0,92,"Julianna_Peña"], ["Manon Fiorot",S_COMB,0,93,"Manon_Fiorot"], ["Romane Dicko",S_COMB,0,95,"Romane_Dicko"], 
+            ["Amandine Buchard",S_COMB,0,94,"Amandine_Buchard"], ["Shirine Boukli",S_COMB,0,91,"Shirine_Boukli"], ["Sarah-Léonie Cysique",S_COMB,0,93,"Sarah-Léonie_Cysique"], 
+            ["Marie-Ève Gahié",S_COMB,0,91,"Marie-Ève_Gahié"], ["Madeleine Malonga",S_COMB,0,92,"Madeleine_Malonga"], ["Audrey Tcheuméo",S_COMB,0,93,"Audrey_Tcheuméo"], 
+            ["Katie Taylor",S_COMB,0,97,"Katie_Taylor"], ["Claressa Shields",S_COMB,0,98,"Claressa_Shields"], 
+            ["Mikaela Mayer",S_COMB,0,91,"Mikaela_Mayer"], ["Amanda Serrano",S_COMB,0,95,"Amanda_Serrano"],                                           
+            
+            ["Mathias Gidsel",S_HAND,0,99], ["Dika Mem",S_HAND,0,95], ["Nedim Remili",S_HAND,0,93], ["Ludovic Fabregas",S_HAND,0,94], 
+            ["Elohim Prandi",S_HAND,0,92], ["Melvyn Richardson",S_HAND,0,91], ["Simon Pytlick",S_HAND,0,93], ["Emil Nielsen",S_HAND,0,93], 
+            ["Jim Gottfridsson",S_HAND,0,91],
+            ["Katrine Lunde",S_HAND,0,97,"Katrine_Lunde"], ["Nora Mørk",S_HAND,0,95,"Nora_Mørk"], ["Stine Bredal Oftedal",S_HAND,0,96,"Stine_Bredal_Oftedal"], 
+            ["Henny Reistad",S_HAND,0,95,"Henny_Reistad"], ["Cristina Neagu",S_HAND,0,97,"Cristina_Neagu"], ["Allison Pineau",S_HAND,0,95,"Allison_Pineau"], 
+            ["Grace Zaadi",S_HAND,0,93,"Grace_Zaadi"], ["Estelle Nze Minko",S_HAND,0,96,"Estelle_Nze_Minko"], ["Pauletta Foppa",S_HAND,0,94,"Pauletta_Foppa"], 
+            ["Laura Glauser",S_HAND,0,93,"Laura_Glauser"], ["Hadja Cissé",S_HAND,0,88,"Hadja_Cissé"], ["Coralie Lassource",S_HAND,0,91,"Coralie_Lassource"], 
+            ["Chloé Valentini",S_HAND,0,92,"Chloé_Valentini"], ["Orlane Kanor",S_HAND,0,92,"Orlane_Kanor"], ["Méline Nocandy",S_HAND,0,90,"Méline_Nocandy"], 
+            ["Tamara Horacek",S_HAND,0,90,"Tamara_Horacek"], ["Alicia Toublanc",S_HAND,0,91,"Alicia_Toublanc"], ["Déborah Lassource",S_HAND,0,89,"Déborah_Lassource"]
+        ];
+
+        const sportsNames = ['Football', 'Basketball', 'Cyclisme', 'Tennis', 'F1', 'Rugby', 'Athlétisme', 'Natation', 'Sports de combat', 'Handball'];
+        const raritiesNames = ['Commune', 'Peu commune', 'Rare', 'Ultra rare', 'Légendaire', 'Mythique'];
+
+        const sportIcons = {
+            'Football': 'fa-futbol',
+            'Basketball': 'fa-basketball',
+            'Cyclisme': 'fa-bicycle',
+            'Tennis': 'fa-table-tennis-paddle-ball',
+            'F1': 'fa-flag-checkered',
+            'Rugby': 'fa-football',
+            'Athlétisme': 'fa-person-running',
+            'Natation': 'fa-person-swimming',
+            'Sports de combat': 'fa-hand-fist',
+            'Handball': 'fa-volleyball'
+        };
+
+        const maxScorePerSport = {};
+        sportsNames.forEach((sport, idx) => {
+            const sportAthletes = rawData.filter(d => d[1] === idx);
+            if (sportAthletes.length > 0) maxScorePerSport[sport] = Math.max(...sportAthletes.map(d => d[3]));
+        });
+
+        const mythicAssigned = {};
+
+        const athletesData = rawData.map((d, i) => {
+            const name = d[0];
+            const sport = sportsNames[d[1]];
+            const score = d[3];
+            const wikiSlug = d[4] || name.replace(/ /g, '_');
+            
+            let rarityId = R_COM;
+            if (score === maxScorePerSport[sport] && !mythicAssigned[sport]) {
+                rarityId = R_MYT; mythicAssigned[sport] = true;
+            } else if (score >= 96) rarityId = R_LEG;
+            else if (score >= 92) rarityId = R_ULT;
+            else if (score >= 89) rarityId = R_RAR;
+            else if (score >= 87) rarityId = R_PEU;
+            else rarityId = R_COM;
+
+            return {
+                id: 'a_' + i, name: name, sport: sport,
+                rarity: raritiesNames[rarityId], rarityId: rarityId,
+                score: score, wikiSlug: wikiSlug
+            };
+        });
+
+        const wikiImageCache = {};
+        const fallbackImage = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=800&q=80';
+
+        async function fetchWikiPhoto(slug) {
+            if (wikiImageCache[slug] !== undefined) return wikiImageCache[slug];
+            for (const lang of ['fr', 'en']) {
+                try {
+                    const res = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(slug)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.thumbnail && data.thumbnail.source) {
+                            wikiImageCache[slug] = data.thumbnail.source;
+                            return data.thumbnail.source;
+                        }
+                    }
+                } catch(e) {}
+            }
+            wikiImageCache[slug] = fallbackImage;
+            return fallbackImage;
+        }
+
+        function playTearSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const bufferSize = audioCtx.sampleRate * 0.45;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                filter.frequency.linearRampToValueAtTime(3500, audioCtx.currentTime + 0.45);
+                filter.Q.value = 3;
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.setValueAtTime(0.7, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
+                noise.connect(filter);
+                filter.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                noise.start();
+            } catch (e) {}
+        }
+
+        function playSparkleSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const notes = [1046.50, 1318.51, 1567.98, 2093.00, 2637.02, 3135.96, 4186.01];
+                notes.forEach((freq, index) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime + index * 0.06);
+                    gain.gain.setValueAtTime(0, audioCtx.currentTime + index * 0.06);
+                    gain.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + index * 0.06 + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + index * 0.06 + 0.35);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(audioCtx.currentTime + index * 0.06);
+                    osc.stop(audioCtx.currentTime + index * 0.06 + 0.4);
+                });
+            } catch (e) {}
+        }
+
+        let currentSportTab = 'all';
+        let showOwnedOnly = false;
+        let userState = { collection: {}, deck: [null, null, null, null, null] };
+        let currentPackCards = []; 
+        let currentCardIndex = 0;
+        let isOpening = false;
+
+        const MAX_PACKS = 12;
+        const REFILL_INTERVAL_MS = 3600 * 1000; // 1 heure
+
+        function initPackSystem() {
+            if (userState.packsCount === undefined) {
+                userState.packsCount = 10;
+                userState.lastPackTime = Date.now();
+            }
+            updatePackSystem();
+            setInterval(updatePackSystem, 1000);
+        }
+
+        function updatePackSystem() {
+            const now = Date.now();
+            const elapsed = now - (userState.lastPackTime || now);
+
+            if (userState.packsCount < MAX_PACKS) {
+                const packsGagnees = Math.floor(elapsed / REFILL_INTERVAL_MS);
+                if (packsGagnees > 0) {
+                    userState.packsCount = Math.min(MAX_PACKS, userState.packsCount + packsGagnees);
+                    userState.lastPackTime = userState.lastPackTime + (packsGagnees * REFILL_INTERVAL_MS);
+                    if (userState.packsCount === MAX_PACKS) {
+                        userState.lastPackTime = now;
+                    }
+                    saveUser();
+                }
+            } else {
+                userState.lastPackTime = now;
+            }
+
+            let timeLeft = 0;
+            if (userState.packsCount < MAX_PACKS) {
+                const timeIntoCurrentInterval = (Date.now() - userState.lastPackTime) % REFILL_INTERVAL_MS;
+                timeLeft = REFILL_INTERVAL_MS - timeIntoCurrentInterval;
+            }
+
+            renderPackUI(timeLeft);
+        }
+
+        function renderPackUI(timeLeft) {
+            const badge = document.getElementById('pack-count-badge');
+            const timerEl = document.getElementById('pack-cooldown-timer');
+            
+            if (badge) badge.textContent = `${userState.packsCount}/${MAX_PACKS}`;
+
+            if (timerEl) {
+                if (userState.packsCount >= MAX_PACKS) {
+                    timerEl.textContent = "MAXIMUM";
+                } else {
+                    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+                    timerEl.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }
+            }
+        }
+
+        async function initUser() {
+            const saved = localStorage.getItem('sports_tcg_gold_pack_v12');
+            if (saved) { try { userState = JSON.parse(saved); } catch(e) {} }
+            if (!userState.collection) userState.collection = {};
+            if (!userState.deck || userState.deck.length !== 5) {
+                userState.deck = ['a_0', 'a_150', 'a_250', null, null]; 
+                userState.collection['a_0'] = 1; userState.collection['a_150'] = 1; userState.collection['a_250'] = 1;
+            }
+            
+            document.querySelectorAll('.total-cards-label').forEach(el => el.textContent = athletesData.length);
+            initPackSystem();
+            saveUser();
+            renderSportTabsBar();
+            updateUI();
+        }
+
+        function saveUser() {
+            localStorage.setItem('sports_tcg_gold_pack_v12', JSON.stringify(userState));
+            updateUI();
+        }
+
+        function switchMainTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.main-tab-btn').forEach(b => {
+                b.className = "main-tab-btn w-full px-4 py-3.5 rounded-xl font-bold font-sport text-sm uppercase tracking-wider flex items-center justify-center md:justify-start gap-3 text-slate-400 hover:bg-slate-800/50 hover:text-white transition-all shrink-0 border border-transparent";
+            });
+            
+            document.getElementById(tabId).classList.add('active');
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) {
+                activeBtn.className = "main-tab-btn w-full px-4 py-3.5 rounded-xl font-bold font-sport text-sm uppercase tracking-wider flex items-center justify-center md:justify-start gap-3 bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)] transition-all shrink-0";
+            }
+
+            if (tabId === 'tab-collection') renderCardsCatalogue();
+            else if (tabId === 'tab-deck') { renderDeck(); renderDeckQuickAdd(); }
+        }
+
+        function renderSportTabsBar() {
+            const container = document.getElementById('sports-tabs-bar');
+            if (!container) return;
+            let html = `<button onclick="switchSportTab('all')" id="sport-pill-all" class="sport-pill px-4 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap bg-cyan-500 text-slate-950 shadow transition">Tous</button>`;
+            sportsNames.forEach(sport => {
+                html += `<button onclick="switchSportTab('${sport}')" id="sport-pill-${sport.replace(/\s+/g, '-')}" class="sport-pill px-4 py-1.5 bg-slate-900 border border-slate-700 text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition">${sport}</button>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function switchSportTab(sport) {
+            currentSportTab = sport;
+            document.querySelectorAll('.sport-pill').forEach(b => b.className = "sport-pill px-4 py-1.5 bg-slate-900 border border-slate-700 text-slate-400 hover:text-white rounded-lg text-xs font-bold whitespace-nowrap transition");
+            const activeBtn = document.getElementById(sport === 'all' ? 'sport-pill-all' : `sport-pill-${sport.replace(/\s+/g, '-')}`);
+            if (activeBtn) activeBtn.className = "sport-pill px-4 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap bg-cyan-500 text-slate-950 shadow transition";
+            renderCardsCatalogue();
+        }
+
+        function toggleOwnedFilter() {
+            showOwnedOnly = !showOwnedOnly;
+            document.getElementById('btn-toggle-owned').innerText = showOwnedOnly ? `Voir Tout (${athletesData.length})` : "Voir Possédés";
+            document.getElementById('btn-toggle-owned').className = showOwnedOnly ? 
+                "w-full sm:w-auto px-4 py-2 bg-cyan-600 border border-cyan-500 text-white rounded-xl text-sm font-bold transition whitespace-nowrap" : 
+                "w-full sm:w-auto px-4 py-2 bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl text-sm font-bold transition whitespace-nowrap";
+            renderCardsCatalogue();
+        }
+
+        function updateUI() {
+            const totalCollected = Object.keys(userState.collection).length;
+            const totalCards = athletesData.length;
+            document.getElementById('collection-counter-text').innerHTML = `${totalCollected} / <span class="total-cards-label">${totalCards}</span> DÉBLOQUÉS`;
+            document.getElementById('nav-counter').innerText = totalCollected;
+            const progressPercent = (totalCollected / totalCards) * 100;
+            document.getElementById('progress-bar-fill').style.width = `${progressPercent}%`;
+
+            if(document.getElementById('tab-collection').classList.contains('active')) renderCardsCatalogue();
+            if(document.getElementById('tab-deck').classList.contains('active')) { renderDeck(); renderDeckQuickAdd(); }
+        }
+
+        function rollCard() {
+            const rand = Math.floor(Math.random() * 1000) + 1;
+            let targetRarityId = R_COM;
+            
+            if (rand === 1) targetRarityId = R_MYT;
+            else if (rand <= 11) targetRarityId = R_LEG;
+            else if (rand <= 51) targetRarityId = R_ULT;
+            else if (rand <= 201) targetRarityId = R_RAR;
+            else if (rand <= 501) targetRarityId = R_PEU;
+            else targetRarityId = R_COM;
+
+            let pool = athletesData.filter(a => a.rarityId === targetRarityId);
+            if (pool.length === 0) {
+                for (let r = targetRarityId - 1; r >= 0; r--) {
+                    pool = athletesData.filter(a => a.rarityId === r);
+                    if (pool.length > 0) break;
+                }
+            }
+            if (pool.length === 0) pool = athletesData;
+            return pool[Math.floor(Math.random() * pool.length)];
+        }
+
+        function startPackOpeningProcess() {
+            if (isOpening) return;
+
+            if (userState.packsCount <= 0) {
+                alert("Tu n'as plus de paquets disponibles ! Attends le prochain rechargement.");
+                return;
+            }
+
+            userState.packsCount--;
+            if (userState.packsCount === MAX_PACKS - 1) {
+                userState.lastPackTime = Date.now();
+            }
+            saveUser();
+            updatePackSystem();
+
+            isOpening = true;
+            playTearSound();
+
+            const rawDropped = [];
+            for (let i = 0; i < 5; i++) rawDropped.push(rollCard());
+            
+            const dropped = rawDropped.map(card => {
+                const alreadyOwned = (userState.collection[card.id] || 0) > 0;
+                return { card: card, isNew: !alreadyOwned };
+            });
+
+            const hasHighRarity = dropped.some(item => item.card.rarityId >= 3);
+            if (hasHighRarity) { playSparkleSound(); }
+
+            dropped.sort((a, b) => a.card.rarityId - b.card.rarityId);
+            
+            dropped.forEach(item => { 
+                userState.collection[item.card.id] = (userState.collection[item.card.id] || 0) + 1; 
+            });
+            saveUser();
+
+            const pack = document.getElementById('main-booster-card');
+            const laser = document.getElementById('laser-line');
+            const topPiece = document.getElementById('booster-top-piece');
+
+            laser.classList.add('anim-cut-laser');
+            topPiece.classList.add('anim-top-tear');
+            pack.classList.add('anim-pack-open');
+
+            setTimeout(() => {
+                currentPackCards = dropped;
+                currentCardIndex = 0;
+
+                laser.classList.remove('anim-cut-laser');
+                topPiece.classList.remove('anim-top-tear');
+                pack.classList.remove('anim-pack-open');
+                isOpening = false;
+
+                document.getElementById('pack-opening-modal').classList.remove('hidden');
+                showCurrentCardInModal();
+            }, 850);
+        }
+
+        async function showCurrentCardInModal() {
+            const item = currentPackCards[currentCardIndex];
+            document.getElementById('pack-progress-title').innerText = `Carte ${currentCardIndex + 1} sur ${currentPackCards.length}`;
+            
+            const photoUrl = await fetchWikiPhoto(item.card.wikiSlug);
+            document.getElementById('pack-single-card-container').innerHTML = getCardHTML(item.card, photoUrl, true, false, true, item.isNew);
+            document.getElementById('finish-pack-btn').classList.add('hidden');
+        }
+
+        async function showPackSummaryModal() {
+            document.getElementById('pack-progress-title').innerText = 'RÉCAPITULATIF DU PACK';
+            const container = document.getElementById('pack-single-card-container');
+            container.className = "grid grid-cols-2 sm:grid-cols-5 gap-3 w-full my-4 max-w-5xl px-2";
+            container.onclick = null;
+            
+            const cardsHtmlList = await Promise.all(currentPackCards.map(async (item) => {
+                const photoUrl = await fetchWikiPhoto(item.card.wikiSlug);
+                return `<div class="w-full flex items-center justify-center">${getCardHTML(item.card, photoUrl, true, true, false, item.isNew)}</div>`;
+            }));
+            
+            container.innerHTML = cardsHtmlList.join('');
+            document.getElementById('finish-pack-btn').classList.remove('hidden');
+        }
+
+        async function revealNextCardInPack() {
+            if (currentCardIndex < currentPackCards.length - 1) {
+                currentCardIndex++;
+                await showCurrentCardInModal();
+            } else {
+                await showPackSummaryModal();
+            }
+        }
+
+        function closePackOpening() {
+            document.getElementById('pack-opening-modal').classList.add('hidden');
+            const container = document.getElementById('pack-single-card-container');
+            container.className = "cursor-pointer transition-transform hover:scale-105";
+            container.onclick = revealNextCardInPack;
+            updateUI();
+        }
+
+        function getCardHTML(athlete, imageUrl, isOwned = false, isSummary = false, isLarge = false, isNew = false) {
+            const rClass = `rarity-${athlete.rarityId}`;
+            const sIcon = sportIcons[athlete.sport] || 'fa-trophy';
+            const sizeClass = isLarge ? "w-64 sm:w-72 md:w-80" : "w-full";
+            const isHolo = athlete.rarityId >= R_ULT;
+            const imgSrc = imageUrl || wikiImageCache[athlete.wikiSlug] || fallbackImage;
+
+            return `
+                <div class="pokemon-card ${rClass} ${sizeClass} ${!isOwned ? 'opacity-30 grayscale' : ''}">
+                    <div class="card-image-container">
+                        <img src="${imgSrc}" data-slug="${athlete.wikiSlug}" class="wiki-card-img" referrerpolicy="no-referrer" onerror="this.src='${fallbackImage}'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/40"></div>
+                    </div>
+                    <div class="card-inner-border"></div>
+                    ${isHolo ? '<div class="holo-sheen"></div>' : ''}
+                    
+                    <div class="absolute top-2.5 left-2.5 z-25 bg-slate-950/95 border-2 themed-border w-9 h-9 flex items-center justify-center rounded-xl shadow-xl">
+                        <i class="fa-solid ${sIcon} text-sm themed-text"></i>
+                    </div>
+
+                    ${isNew ? `
+                        <div class="absolute top-2 left-2 z-30 bg-gradient-to-r from-red-600/70 to-amber-500/70 backdrop-blur-[2px] text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow-md border border-yellow-300/60 uppercase tracking-tighter transform -rotate-6 animate-pulse">
+                            NEW
+                        </div>
+                    ` : ''}
+
+                    <div class="absolute top-2.5 right-2.5 z-20 bg-slate-950/95 border-2 themed-border px-3.5 py-1 rounded-xl shadow-xl">
+                        <span class="text-sm font-black themed-text tracking-wider">${athlete.score}</span>
+                    </div>
+                    <div class="name-banner border-2 themed-border py-2 px-3 shadow-2xl">
+                        <h5 class="text-[11px] sm:text-xs font-black themed-text uppercase tracking-tight leading-tight truncate">${athlete.name}</h5>
+                    </div>
+                </div>
+            `;
+        }
+
+        let renderTimeout;
+        function renderCardsCatalogue() {
+            const container = document.getElementById('cards-container');
+            if (!container) return;
+            const search = document.getElementById('search-input').value.toLowerCase();
+            
+            clearTimeout(renderTimeout);
+            
+            renderTimeout = setTimeout(() => {
+                const filteredAthletes = athletesData.filter(athlete => {
+                    if (search && !athlete.name.toLowerCase().includes(search)) return false;
+                    if (currentSportTab !== 'all' && athlete.sport !== currentSportTab) return false;
+                    const count = userState.collection[athlete.id] || 0;
+                    if (showOwnedOnly && count === 0) return false;
+                    return true;
+                });
+
+                if(filteredAthletes.length === 0) {
+                    container.innerHTML = '<div class="col-span-full py-16 text-center text-slate-500 text-sm bg-slate-900/30 rounded-2xl border border-dashed border-slate-800">Aucun athlète trouvé pour cette recherche.</div>';
+                    return;
+                }
+
+                let cardsHtml = '';
+                for (const athlete of filteredAthletes) {
+                    const count = userState.collection[athlete.id] || 0;
+                    cardsHtml += getCardHTML(athlete, null, count > 0, false, false, false);
+                }
+                
+                container.innerHTML = cardsHtml;
+                lazyLoadWikiImages();
+            }, 100);
+        }
+
+        function lazyLoadWikiImages() {
+            const imgs = document.querySelectorAll('.wiki-card-img[data-slug]');
+            imgs.forEach(async (img) => {
+                const slug = img.getAttribute('data-slug');
+                if (slug && !wikiImageCache[slug]) {
+                    const src = await fetchWikiPhoto(slug);
+                    img.src = src;
+                }
+            });
+        }
+
+        function filterCards() { renderCardsCatalogue(); }
+
+        function addToDeck(athleteId) {
+            const emptyIdx = userState.deck.indexOf(null);
+            if (emptyIdx !== -1) { userState.deck[emptyIdx] = athleteId; saveUser(); }
+        }
+        function removeFromDeck(idx) { userState.deck[idx] = null; saveUser(); }
+
+        function renderDeck() {
+            const container = document.getElementById('active-deck-slots');
+            if (!container) return;
+            container.innerHTML = '';
+            for (let i = 0; i < 5; i++) {
+                const id = userState.deck[i];
+                if (id) {
+                    const athlete = athletesData.find(a => a.id === id);
+                    container.innerHTML += `
+                        <div class="bg-slate-900/80 p-4 rounded-2xl border border-cyan-500/30 flex items-center justify-between shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
+                            <div class="truncate mr-2">
+                                <h6 class="font-bold text-sm text-white truncate">${athlete.name}</h6>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-[10px] text-cyan-400 font-sport uppercase bg-cyan-900/30 px-2 py-0.5 rounded">${athlete.sport}</span>
+                                    <span class="text-[10px] text-amber-300 font-mono font-bold">OVR ${athlete.score}</span>
+                                </div>
+                            </div>
+                            <button onclick="removeFromDeck(${i})" class="w-8 h-8 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors shrink-0">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>`;
+                } else {
+                    container.innerHTML += `
+                        <div class="bg-slate-950/40 p-4 rounded-2xl border border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-500 h-[72px]">
+                            <i class="fa-solid fa-plus mb-1 opacity-50"></i>
+                            <span class="text-[10px] uppercase tracking-wider font-bold">Slot Vide</span>
+                        </div>`;
+                }
+            }
+        }
+
+        function renderDeckQuickAdd() {
+            const container = document.getElementById('deck-quick-add-container');
+            if (!container) return;
+            const owned = athletesData.filter(a => userState.collection[a.id] > 0 && !userState.deck.includes(a.id));
+            container.innerHTML = owned.length === 0 ? `<p class="text-sm text-slate-500 col-span-full py-4 text-center">Aucun autre athlète disponible dans votre collection.</p>` : '';
+            owned.forEach(athlete => {
+                container.innerHTML += `
+                    <div onclick="addToDeck('${athlete.id}')" class="bg-slate-900 border border-slate-700 hover:border-cyan-500 hover:bg-slate-800 p-3 rounded-xl cursor-pointer transition-all group">
+                        <div class="font-bold text-xs text-white truncate group-hover:text-cyan-400 transition-colors">${athlete.name}</div>
+                        <div class="text-[10px] text-amber-400 font-mono mt-1">OVR ${athlete.score}</div>
+                    </div>`;
+            });
+        }
+
+        window.onload = function() { initUser(); };
+    </script>
+</body>
+</html>
